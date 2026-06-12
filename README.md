@@ -85,7 +85,7 @@ routes/
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/reactcrm.git
+git clone https://github.com/mkdaraniya/reactcrm.git
 cd reactcrm
 
 cp .env.example .env
