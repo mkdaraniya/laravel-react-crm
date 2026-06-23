@@ -10,12 +10,17 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends BaseController
 {
+    private function isDemoUser(User $user): bool
+    {
+        return $user->email === config('demo.email');
+    }
+
     public function login(Request $request): JsonResponse
     {
         try {
             $request->validate([
-                'email' => 'required|email',
-                'password' => 'required',
+                'email' => 'required|email:filter',
+                'password' => 'required|string|min:1|max:255',
             ]);
 
             $user = User::where('email', $request->email)->first();
@@ -38,6 +43,7 @@ class AuthController extends BaseController
         } catch (ValidationException $e) {
             return $this->errorResponse('Validation failed.', 422, $e->errors());
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Login failed. Please try again.', 500);
         }
     }
@@ -46,9 +52,9 @@ class AuthController extends BaseController
     {
         try {
             $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|email|unique:users,email',
-                'password' => 'required|min:8|confirmed',
+                'name' => 'required|string|max:255|regex:/^[a-zA-Z\s\-\'\.]+$/',
+                'email' => 'required|email:filter|unique:users,email',
+                'password' => 'required|string|min:8|max:255|confirmed',
             ]);
 
             $user = User::create([
@@ -72,6 +78,7 @@ class AuthController extends BaseController
         } catch (ValidationException $e) {
             return $this->errorResponse('Validation failed.', 422, $e->errors());
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Registration failed. Please try again.', 500);
         }
     }
@@ -86,6 +93,7 @@ class AuthController extends BaseController
                 'role' => $request->user()->role,
             ]);
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to fetch user.', 500);
         }
     }
@@ -97,6 +105,7 @@ class AuthController extends BaseController
 
             return $this->successResponse(null, 'Logged out successfully.');
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to logout.', 500);
         }
     }
@@ -104,9 +113,13 @@ class AuthController extends BaseController
     public function updateProfile(Request $request): JsonResponse
     {
         try {
+            if ($this->isDemoUser($request->user())) {
+                return $this->errorResponse('Demo account profile cannot be modified.', 403);
+            }
+
             $data = $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|email|unique:users,email,' . $request->user()->id,
+                'name' => 'required|string|max:255|regex:/^[a-zA-Z\s\-\'\.]+$/',
+                'email' => 'required|email:filter|unique:users,email,' . $request->user()->id,
             ]);
 
             $request->user()->update($data);
@@ -120,6 +133,7 @@ class AuthController extends BaseController
         } catch (ValidationException $e) {
             return $this->errorResponse('Validation failed.', 422, $e->errors());
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to update profile.', 500);
         }
     }
@@ -127,9 +141,13 @@ class AuthController extends BaseController
     public function updatePassword(Request $request): JsonResponse
     {
         try {
+            if ($this->isDemoUser($request->user())) {
+                return $this->errorResponse('Demo account password cannot be changed.', 403);
+            }
+
             $data = $request->validate([
                 'current_password' => 'required|current_password',
-                'password' => 'required|min:8|confirmed',
+                'password' => 'required|string|min:8|max:255|confirmed',
             ]);
 
             $request->user()->update(['password' => Hash::make($data['password'])]);
@@ -138,6 +156,7 @@ class AuthController extends BaseController
         } catch (ValidationException $e) {
             return $this->errorResponse('Validation failed.', 422, $e->errors());
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to update password.', 500);
         }
     }
@@ -145,10 +164,13 @@ class AuthController extends BaseController
     public function destroyAccount(Request $request): JsonResponse
     {
         try {
+            if ($this->isDemoUser($request->user())) {
+                return $this->errorResponse('Demo account cannot be deleted.', 403);
+            }
+
             $request->validate(['password' => 'required|current_password']);
 
             $user = $request->user();
-
             $user->tokens()->delete();
             $user->delete();
 
@@ -156,6 +178,7 @@ class AuthController extends BaseController
         } catch (ValidationException $e) {
             return $this->errorResponse('Validation failed.', 422, $e->errors());
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to delete account.', 500);
         }
     }

@@ -10,7 +10,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
-import { STATUS_COLORS, PER_PAGE_OPTIONS } from '../utils/constants';
+import { STATUS_COLORS, PER_PAGE_OPTIONS, DEMO_EMAIL, isDemoUser } from '../utils/constants';
 import { formatDate } from '../utils/formatters';
 
 const emptyUserForm = { name: '', email: '', password: '', role: 'user' };
@@ -227,6 +227,8 @@ function UserManagement({ currentUser }) {
         sort_field: 'created_at', sort_dir: 'desc',
     });
 
+    const canManage = (u) => !isDemoUser(u) && u.created_by === currentUser?.id;
+
     const fetchUsers = useCallback(async () => {
         try {
             const { data: res } = await getUsers(params);
@@ -324,19 +326,27 @@ function UserManagement({ currentUser }) {
                             <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50">
                                 <td className="px-6 py-3 font-medium text-gray-900">
                                     {u.name} {u.id === currentUser?.id && <span className="text-xs text-gray-400">(you)</span>}
+                                    {isDemoUser(u) && <span className="text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded ml-1">Demo</span>}
+                                    {u.created_by && u.creator && !isDemoUser(u) && <span className="text-xs text-gray-400 ml-1">by {u.creator.name}</span>}
                                 </td>
                                 <td className="px-6 py-3 text-gray-500">{u.email}</td>
                                 <td className="px-6 py-3">
-                                    <select value={u.role} onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                                        className={`text-xs font-medium rounded-full px-2 py-0.5 border-none cursor-pointer ${STATUS_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
-                                        <option value="user">user</option>
-                                        <option value="manager">manager</option>
-                                        <option value="admin">admin</option>
-                                    </select>
+                                    {canManage(u) ? (
+                                        <select value={u.role} onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                                            className={`text-xs font-medium rounded-full px-2 py-0.5 border-none cursor-pointer ${STATUS_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                                            <option value="user">user</option>
+                                            <option value="manager">manager</option>
+                                            <option value="admin">admin</option>
+                                        </select>
+                                    ) : (
+                                        <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${STATUS_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                                            {u.role}
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-6 py-3 text-gray-500 text-xs">{formatDate(u.created_at)}</td>
                                 <td className="px-6 py-3 text-right">
-                                    {u.id !== currentUser?.id && (
+                                    {u.id !== currentUser?.id && canManage(u) && (
                                         <button onClick={() => setDeleteTarget(u)} className="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
                                     )}
                                 </td>

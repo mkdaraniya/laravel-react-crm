@@ -11,13 +11,13 @@ class DashboardController extends BaseController
     public function stats(): JsonResponse
     {
         try {
-            $totalRevenue = (float) Deal::where('status', 'won')->sum('value');
-            $activeLeads = Deal::where('status', 'open')->count();
-            $wonDealCount = Deal::where('status', 'won')->count();
+            $totalRevenue = (float) Deal::where('status', 'won')->where('user_id', auth()->id())->sum('value');
+            $activeLeads = Deal::where('status', 'open')->where('user_id', auth()->id())->count();
+            $wonDealCount = Deal::where('status', 'won')->where('user_id', auth()->id())->count();
             $dealVelocity = 0;
 
             if ($wonDealCount > 0) {
-                $avgDays = Deal::where('status', 'won')
+                $avgDays = Deal::where('status', 'won')->where('user_id', auth()->id())
                     ->selectRaw('AVG(DATEDIFF(updated_at, created_at)) as avg_days')
                     ->value('avg_days');
                 $dealVelocity = round((float) $avgDays, 1);
@@ -30,6 +30,7 @@ class DashboardController extends BaseController
                 'deal_velocity' => $dealVelocity,
             ]);
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to fetch dashboard stats.', 500);
         }
     }
@@ -37,7 +38,7 @@ class DashboardController extends BaseController
     public function revenue(): JsonResponse
     {
         try {
-            $data = Deal::where('status', 'won')
+            $data = Deal::where('status', 'won')->where('user_id', auth()->id())
                 ->selectRaw('DATE_FORMAT(updated_at, "%Y-%m") as month, SUM(value) as total')
                 ->groupBy('month')
                 ->orderBy('month')
@@ -45,6 +46,7 @@ class DashboardController extends BaseController
 
             return $this->successResponse($data);
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to fetch revenue data.', 500);
         }
     }
@@ -53,6 +55,7 @@ class DashboardController extends BaseController
     {
         try {
             $activities = Activity::with('user:id,name')
+                ->where('user_id', auth()->id())
                 ->latest()
                 ->take(50)
                 ->get()
@@ -66,6 +69,7 @@ class DashboardController extends BaseController
 
             return $this->successResponse($activities);
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to fetch activities.', 500);
         }
     }

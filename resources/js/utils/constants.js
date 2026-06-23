@@ -5,6 +5,10 @@ export const INVOICE_STATUSES = ['paid', 'unpaid', 'overdue', 'cancelled'];
 export const USER_ROLES = ['admin', 'manager', 'user'];
 export const PER_PAGE_OPTIONS = [10, 15, 25, 50];
 
+export const DEMO_EMAIL = 'demo@reactcrm.com';
+
+export const isDemoUser = (user) => user?.email === DEMO_EMAIL;
+
 export const STATUS_COLORS = {
     paid: 'bg-green-100 text-green-700',
     unpaid: 'bg-yellow-100 text-yellow-700',

@@ -14,18 +14,22 @@ class StageRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'name' => 'required|string|max:255',
-            'color' => 'nullable|string|max:7',
+            'name' => 'required|string|max:100',
+            'color' => 'nullable|string|max:7|regex:/^#[a-fA-F0-9]{6}$/',
         ];
 
         if ($this->isMethod('PATCH') || $this->isMethod('PUT')) {
-            foreach ($rules as $key => $rule) {
-                if (str_starts_with($rule, 'required')) {
-                    $rules[$key] = str_replace('required', 'sometimes', $rule);
-                }
-            }
+            $rules['name'] = 'sometimes|string|max:100';
         }
 
         return $rules;
+    }
+
+    public function messages(): array
+    {
+        return [
+            'color.regex' => 'Color must be a valid hex color code (e.g. #6366f1).',
+            'name.max' => 'Stage name must not exceed 100 characters.',
+        ];
     }
 }

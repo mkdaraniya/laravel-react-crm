@@ -24,6 +24,7 @@ class ActivityController extends BaseController
 
             return $this->successResponse($activities);
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to fetch activities.', 500);
         }
     }

@@ -7,6 +7,7 @@ use App\Http\Resources\StageResource;
 use App\Models\PipelineStage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class PipelineStageController extends BaseController
 {
@@ -19,6 +20,7 @@ class PipelineStageController extends BaseController
 
             return $this->successResponse(StageResource::collection($stages));
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to fetch stages.', 500);
         }
     }
@@ -39,7 +41,10 @@ class PipelineStageController extends BaseController
                 'Stage created successfully.',
                 201
             );
+        } catch (ValidationException $e) {
+            return $this->errorResponse('Validation failed.', 422, $e->errors());
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to create stage.', 500);
         }
     }
@@ -53,7 +58,10 @@ class PipelineStageController extends BaseController
                 new StageResource($pipelineStage),
                 'Stage updated successfully.'
             );
+        } catch (ValidationException $e) {
+            return $this->errorResponse('Validation failed.', 422, $e->errors());
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to update stage.', 500);
         }
     }
@@ -62,9 +70,9 @@ class PipelineStageController extends BaseController
     {
         try {
             $request->validate([
-                'stages' => 'required|array',
-                'stages.*.id' => 'required|exists:pipeline_stages,id',
-                'stages.*.order' => 'required|integer|min:0',
+                'stages' => 'required|array|max:50',
+                'stages.*.id' => 'required|integer|exists:pipeline_stages,id',
+                'stages.*.order' => 'required|integer|min:0|max:1000',
             ]);
 
             foreach ($request->stages as $data) {
@@ -72,7 +80,10 @@ class PipelineStageController extends BaseController
             }
 
             return $this->successResponse(null, 'Stages reordered successfully.');
+        } catch (ValidationException $e) {
+            return $this->errorResponse('Validation failed.', 422, $e->errors());
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to reorder stages.', 500);
         }
     }
@@ -84,6 +95,7 @@ class PipelineStageController extends BaseController
 
             return $this->successResponse(null, 'Stage deleted successfully.');
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to delete stage.', 500);
         }
     }

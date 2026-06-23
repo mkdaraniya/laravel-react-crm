@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\CompanySetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class SettingController extends BaseController
 {
@@ -15,6 +16,7 @@ class SettingController extends BaseController
 
             return $this->successResponse($settings);
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to fetch settings.', 500);
         }
     }
@@ -24,9 +26,9 @@ class SettingController extends BaseController
         try {
             $data = $request->validate([
                 'company_name' => 'nullable|string|max:255',
-                'company_email' => 'nullable|email|max:255',
-                'company_phone' => 'nullable|string|max:20',
-                'company_address' => 'nullable|string',
+                'company_email' => 'nullable|email:filter|max:255',
+                'company_phone' => 'nullable|string|max:20|regex:/^[\+\d\s\-\(\)\.]+$/',
+                'company_address' => 'nullable|string|max:2000',
             ]);
 
             foreach ($data as $key => $value) {
@@ -37,7 +39,10 @@ class SettingController extends BaseController
             }
 
             return $this->successResponse(null, 'Settings updated successfully.');
+        } catch (ValidationException $e) {
+            return $this->errorResponse('Validation failed.', 422, $e->errors());
         } catch (\Throwable $e) {
+            report($e);
             return $this->errorResponse('Failed to update settings.', 500);
         }
     }

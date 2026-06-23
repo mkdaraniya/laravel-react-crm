@@ -14,21 +14,24 @@ class InvoiceRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'deal_id' => 'nullable|exists:deals,id',
-            'contact_id' => 'nullable|exists:contacts,id',
-            'amount' => 'required|numeric|min:0',
+            'deal_id' => 'nullable|integer|exists:deals,id',
+            'contact_id' => 'nullable|integer|exists:contacts,id',
+            'amount' => 'required|numeric|min:0|max:999999999.99',
             'status' => 'nullable|string|in:paid,unpaid,overdue,cancelled',
             'due_date' => 'nullable|date',
         ];
 
         if ($this->isMethod('PATCH') || $this->isMethod('PUT')) {
-            foreach ($rules as $key => $rule) {
-                if (str_starts_with($rule, 'required')) {
-                    $rules[$key] = str_replace('required', 'sometimes', $rule);
-                }
-            }
+            $rules['amount'] = 'sometimes|numeric|min:0|max:999999999.99';
         }
 
         return $rules;
+    }
+
+    public function messages(): array
+    {
+        return [
+            'amount.max' => 'Invoice amount must not exceed 999,999,999.99.',
+        ];
     }
 }

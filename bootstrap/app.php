@@ -4,6 +4,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,7 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        //
+        $middleware->api(prepend: [
+            \App\Http\Middleware\SanitizeInput::class,
+            \App\Http\Middleware\SecurityHeaders::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -37,41 +42,31 @@ return Application::configure(basePath: dirname(__DIR__))
                 $e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException => 404,
                 $e instanceof \Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException => 405,
                 $e instanceof \Illuminate\Http\Exceptions\ThrottleRequestsException => 429,
+                $e instanceof \Symfony\Component\HttpKernel\Exception\HttpException => $e->getStatusCode(),
                 default => 500,
+            };
+
+            $message = match ($statusCode) {
+                422 => 'Validation failed.',
+                401 => 'Unauthenticated.',
+                403 => 'Forbidden.',
+                404 => 'Resource not found.',
+                405 => 'Method not allowed.',
+                429 => 'Too many requests. Please try again later.',
+                default => 'An unexpected error occurred.',
             };
 
             $response = [
                 'success' => false,
-                'message' => $e->getMessage() ?: 'An unexpected error occurred.',
+                'message' => $message,
             ];
 
             if ($e instanceof \Illuminate\Validation\ValidationException) {
-                $response['message'] = 'Validation failed.';
                 $response['errors'] = $e->errors();
             }
 
-            if ($statusCode === 500) {
-                $response['message'] = 'An unexpected error occurred.';
-            }
-
-            if ($statusCode === 404) {
-                $response['message'] = 'Resource not found.';
-            }
-
-            if ($statusCode === 401) {
-                $response['message'] = 'Unauthenticated.';
-            }
-
-            if ($statusCode === 403) {
-                $response['message'] = 'Forbidden.';
-            }
-
-            if ($statusCode === 429) {
-                $response['message'] = 'Too many requests. Please try again later.';
-            }
-
-            if ($statusCode === 405) {
-                $response['message'] = 'Method not allowed.';
+            if ($statusCode >= 500) {
+                report($e);
             }
 
             return response()->json($response, $statusCode);
